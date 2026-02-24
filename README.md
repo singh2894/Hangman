@@ -1,7 +1,7 @@
 # Hangman
 
 
-1. Problem description (Hangman, 5-letter English words)
+## Problem description (Hangman, 5-letter English words)
 
 Hangman is a sequential decision game between an agent (guesser) and the environment (word generator).
 
@@ -19,7 +19,7 @@ The game ends when:
 the agent reveals the entire word (win), or
 the remaining wrong guesses reaches 0 (lose).
 
-2. MDP formulation
+## MDP formulation
 
 We define the MDP as the tuple (S,A,P,R,γ).
 Alphabet and dictionary
