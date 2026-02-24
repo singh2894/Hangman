@@ -10,6 +10,7 @@ def run():
     state = game.reset()
     done = False
 
+    print("Secret word:", game.secret_word)  # remove for real evaluation
     print()
 
     while not done:

@@ -37,4 +37,3 @@ class HangmanGame:
 
     def get_state(self):
         return "".join(self.pattern), self.guessed_letters, self.remaining_wrong
-    
