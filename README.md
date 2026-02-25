@@ -29,3 +29,23 @@ Alphabet (lowercase English letters):
 
 Dictionary of valid secret words:
 W⊆Σ^5.
+
+## How to run
+
+Run the default classic loop:
+
+```bash
+python3 main.py
+```
+
+Run the environment loop:
+
+```bash
+python3 main.py --mode env
+```
+
+Use a fixed seed in environment mode:
+
+```bash
+python3 main.py --mode env --seed 42
+```
