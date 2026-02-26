@@ -1,44 +1,42 @@
+# heuristic_agent.py
 from collections import Counter
 import string
 
 
 class HeuristicHangmanAgent:
-
     def __init__(self, dictionary_words):
         self.dictionary = [
             w.lower() for w in dictionary_words
             if len(w) == 5 and w.isalpha()
         ]
 
-        # Step 1: count total letter appearances in dictionary
         self.global_counts = Counter()
         for w in self.dictionary:
             self.global_counts.update(w)
 
-        # Step 2: rank letters by frequency
-        self.global_ranked_letters = [
-            ch for ch, _ in self.global_counts.most_common()
-        ]
+        self.global_ranked_letters = [ch for ch, _ in self.global_counts.most_common()]
 
-    def _filter_candidates(self, pattern, guessed_letters):
-        revealed = set(pattern) - {"_"}
+    @staticmethod
+    def _pattern_tuple_to_str(pattern_tuple) -> str:
+        # env gives ('A','_','_','E','_') -> "a__e_"
+        return "".join("_" if ch == "_" else str(ch).lower() for ch in pattern_tuple)
+
+    def _filter_candidates(self, pattern_str: str, guessed_letters: set[str]):
+        revealed = set(pattern_str) - {"_"}
         wrong_letters = guessed_letters - revealed
 
         candidates = []
-
         for w in self.dictionary:
-            match = True
-
-            # Must match revealed pattern
-            for i, p in enumerate(pattern):
+            # match revealed positions
+            ok = True
+            for i, p in enumerate(pattern_str):
                 if p != "_" and w[i] != p:
-                    match = False
+                    ok = False
                     break
-
-            if not match:
+            if not ok:
                 continue
 
-            # Must not contain wrong letters
+            # must not contain wrong letters
             if any(ch in w for ch in wrong_letters):
                 continue
 
@@ -46,13 +44,13 @@ class HeuristicHangmanAgent:
 
         return candidates
 
-    def choose_letter(self, pattern, guessed_letters):
+    def choose_letter(self, pattern_tuple, guessed_list):
+        pattern_str = self._pattern_tuple_to_str(pattern_tuple)
+        guessed_letters = {str(g).lower() for g in guessed_list}
 
-        candidates = self._filter_candidates(pattern, guessed_letters)
+        candidates = self._filter_candidates(pattern_str, guessed_letters)
 
-        # Step 3: pick most frequent letter among remaining candidates
         counter = Counter()
-
         for w in candidates:
             for ch in set(w):
                 if ch not in guessed_letters:
@@ -61,7 +59,6 @@ class HeuristicHangmanAgent:
         if counter:
             return counter.most_common(1)[0][0]
 
-        # fallback to global ranking
         for ch in self.global_ranked_letters:
             if ch not in guessed_letters and ch in string.ascii_lowercase:
                 return ch

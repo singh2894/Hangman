@@ -1,72 +1,54 @@
+# main.py
 from dict import words
-from hangman_game import HangmanGame
 from heuristic_agent import HeuristicHangmanAgent
+from hangman_env import WordSampler, EnvHangmanGym
 import argparse
 
 
-def run_classic():
-    game = HangmanGame(words, max_wrong=6)
-    agent = HeuristicHangmanAgent(words)
-
-    state = game.reset()
-    done = False
-
-    print("Secret word:", game.secret_word)  # remove for real evaluation
-    print()
-
-    while not done:
-        pattern, guessed, remaining = state
-
-        print("Pattern:", pattern)
-        print("Remaining wrong guesses:", remaining)
-        print("Guessed letters:", guessed)
-
-        letter = agent.choose_letter(pattern, guessed)
-        print("Agent guesses:", letter)
-
-        state, reward, done = game.guess(letter)
-        print("Reward:", reward)
-        print("-" * 40)
-
-    if "_" not in game.pattern:
-        print("Agent WON 🎉")
-    else:
-        print("Agent LOST ❌")
-
-    print("Final word:", game.secret_word)
+def letter_to_action(letter: str) -> int:
+    letter = letter.lower()
+    return ord(letter) - ord("a")
 
 
-def run_env(seed=42):
-    from hangman_env import EnvHangman, WordSampler
-
+def run_gym(seed=42, split="train"):
     sampler = WordSampler(seed=seed)
-    secret_word = sampler.sample(split="train", seed=seed)
-    env = EnvHangman(secret_word)
+    secret_word = sampler.sample(split=split, seed=seed)
+
+    env = EnvHangmanGym(secret_word)
     agent = HeuristicHangmanAgent(words)
 
-    _, info = env.reset(seed=seed)
-    done = False
+    # Debug (keep for now)
+    print("Using env class:", env.__class__.__name__)
 
-    print("Secret word:", info["word"])  # remove for real evaluation
+    obs, info = env.reset(seed=seed)
+
+    print("Secret word:", info.get("word", secret_word))  # remove for real evaluation
     print()
 
+    done = False
     while not done:
-        pattern = "".join(ch.lower() for ch in info["pattern"])
-        guessed = set(info["guessed"])
-        remaining = info["wrong_left"]
+        # choose_letter expects tuple + list from info
+        letter = agent.choose_letter(info["pattern"], info["guessed"])
+        action = letter_to_action(letter)
 
-        print("Pattern:", pattern)
-        print("Remaining wrong guesses:", remaining)
-        print("Guessed letters:", guessed)
+        out = env.step(action)
 
-        letter = agent.choose_letter(pattern, guessed)
-        print("Agent guesses:", letter)
+        # ✅ Works whether step returns 4 or 5 values
+        if len(out) == 5:
+            obs, reward, terminated, truncated, info = out
+        elif len(out) == 4:
+            obs, terminated, truncated, info = out
+            # fallback reward (since gym reward missing)
+            reward = 0.0
+        else:
+            raise RuntimeError(f"Unexpected number of values from env.step(): {len(out)}")
 
-        prev_remaining = remaining
-        _, terminated, truncated, info = env.step(letter)
         done = terminated or truncated
-        reward = 1 if info["wrong_left"] == prev_remaining else -1
-        print("Reward:", reward)
+
+        print("Pattern:", "".join(info["pattern"]))
+        print("Wrong left:", info["wrong_left"])
+        print("Guessed:", info["guessed"])
+        print("Agent guessed:", letter, "| reward:", reward)
         print("-" * 40)
 
     if "_" not in info["pattern"]:
@@ -74,29 +56,16 @@ def run_env(seed=42):
     else:
         print("Agent LOST ❌")
 
-    print("Final word:", info["word"])
+    print("Final word:", info.get("word", secret_word))
 
 
 def run():
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--mode",
-        choices=("classic", "env"),
-        default="classic",
-        help="Choose classic game loop or environment loop.",
-    )
-    parser.add_argument(
-        "--seed",
-        type=int,
-        default=42,
-        help="Random seed used by env mode.",
-    )
+    parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--split", choices=("train", "test"), default="train")
     args = parser.parse_args()
 
-    if args.mode == "env":
-        run_env(seed=args.seed)
-        return
-    run_classic()
+    run_gym(seed=args.seed, split=args.split)
 
 
 if __name__ == "__main__":
