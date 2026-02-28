@@ -1,8 +1,9 @@
 # train_rl.py
 import random
 import numpy as np
+import os
+import pickle
 from collections import defaultdict
-
 from hangman_env import WordSampler, EnvHangmanGym
 
 
@@ -75,6 +76,7 @@ def train_qlearning(
             Q[s][a] += alpha * (target - float(Q[s][a]))
 
             s = s2
+
 
         if (ep + 1) % 500 == 0:
             print(f"Episode {ep+1}/{episodes} done | Q states: {len(Q)}")
@@ -162,10 +164,43 @@ def evaluate_greedy(Q, episodes=200, seed=999, split="test"):
         if "_" not in info["pattern"]:
             wins += 1
 
-    print("Greedy policy win rate:", wins / episodes)
-    print("Avg steps per episode:", total_steps / episodes)
-    print("Avg reward per episode:", total_reward / episodes)
+    # calculate metrics
+    win_rate = wins / episodes
+    avg_steps = total_steps / episodes
+    avg_reward = total_reward / episodes
 
+    print("Greedy policy win rate:", win_rate)
+    print("Avg steps per episode:", avg_steps)
+    print("Avg reward per episode:", avg_reward)
+
+    return {
+        'win_rate': win_rate,
+        'avg_steps': avg_steps,
+        'avg_reward': avg_reward
+    }
+
+def save_results(Q, eval_results, algorithm_name, episodes):
+    os.makedirs('models', exist_ok=True)
+    os.makedirs('results', exist_ok=True)
+
+    # save Q-table
+    model_path = f'models/{algorithm_name.lower()}_model.pkl'
+    with open(model_path, 'wb') as f:
+        pickle.dump(dict(Q), f)
+    
+    print(f"Model is successfully saved to {model_path}")
+
+    # save result to file
+    results_path = f'results/{algorithm_name.lower()}_results.txt'
+    with open(results_path, 'w') as f:
+        f.write(f"Algorithm: {algorithm_name}\n")
+        f.write(f"Episodes: {episodes}\n")
+        f.write(f"Q-table size: {len(Q)}\n")
+        f.write(f"Win rate: {eval_results['win_rate']:.4f}\n")
+        f.write(f"Avg steps: {eval_results['avg_steps']:.4f}\n")
+        f.write(f"Avg reward: {eval_results['avg_reward']:.4f}\n")
+
+    print(f"Result is successfully saved to {results_path}")
 
 if __name__ == "__main__":
     EPISODES = 50000
@@ -173,8 +208,10 @@ if __name__ == "__main__":
 
     print("=== Q-learning ===")
     Q_q = train_qlearning(episodes=EPISODES, split="train")
-    evaluate_greedy(Q_q, episodes=EVAL_EPISODES, split="test")
+    eval_result_q_learning = evaluate_greedy(Q_q, episodes=EVAL_EPISODES, split="test")
+    save_results(Q_q, eval_result_q_learning, "Q-Learning", EPISODES)
 
     print("\n=== SARSA ===")
     Q_s = train_sarsa(episodes=EPISODES, split="train")
-    evaluate_greedy(Q_s, episodes=EVAL_EPISODES, split="test")
+    eval_result_sarsa = evaluate_greedy(Q_s, episodes=EVAL_EPISODES, split="test")
+    save_results(Q_s, eval_result_sarsa, "SARSA", EPISODES)

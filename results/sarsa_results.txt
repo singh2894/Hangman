@@ -1,0 +1,6 @@
+Algorithm: SARSA
+Episodes: 50000
+Q-table size: 176201
+Win rate: 0.1970
+Avg steps: 8.4440
+Avg reward: -0.8010
