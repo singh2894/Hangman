@@ -6,49 +6,32 @@ import argparse
 
 
 def letter_to_action(letter: str) -> int:
-    letter = letter.lower()
-    return ord(letter) - ord("a")
+    return ord(letter.lower()) - ord("a")
 
 
 def run_gym(seed=42, split="train"):
     sampler = WordSampler(seed=seed)
-    secret_word = sampler.sample(split=split, seed=seed)
+    secret_word = sampler.sample(split=split, seed=None)
 
     env = EnvHangmanGym(secret_word)
     agent = HeuristicHangmanAgent(words)
-
-    # Debug (keep for now)
-    print("Using env class:", env.__class__.__name__)
-
     obs, info = env.reset(seed=seed)
 
-    print("Secret word:", info.get("word", secret_word))  # remove for real evaluation
-    print()
+    print(f"Secret word: {info['word']}")
+    print("-" * 40)
 
     done = False
     while not done:
-        # choose_letter expects tuple + list from info
         letter = agent.choose_letter(info["pattern"], info["guessed"])
         action = letter_to_action(letter)
 
-        out = env.step(action)
-
-        # ✅ Works whether step returns 4 or 5 values
-        if len(out) == 5:
-            obs, reward, terminated, truncated, info = out
-        elif len(out) == 4:
-            obs, terminated, truncated, info = out
-            # fallback reward (since gym reward missing)
-            reward = 0.0
-        else:
-            raise RuntimeError(f"Unexpected number of values from env.step(): {len(out)}")
-
+        obs, reward, terminated, truncated, info = env.step(action)
         done = terminated or truncated
 
-        print("Pattern:", "".join(info["pattern"]))
-        print("Wrong left:", info["wrong_left"])
-        print("Guessed:", info["guessed"])
-        print("Agent guessed:", letter, "| reward:", reward)
+        print(f"Guessed  : {letter}")
+        print(f"Pattern  : {''.join(info['pattern'])}")
+        print(f"Guessed  : {info['guessed']}")
+        print(f"Wrong left: {info['wrong_left']}  |  Reward: {reward}")
         print("-" * 40)
 
     if "_" not in info["pattern"]:
@@ -56,16 +39,17 @@ def run_gym(seed=42, split="train"):
     else:
         print("Agent LOST ❌")
 
-    print("Final word:", info.get("word", secret_word))
+    print(f"Final word: {info['word']}")
 
 
 def run():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description="Run heuristic Hangman agent.")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--split", choices=("train", "test"), default="train")
     args = parser.parse_args()
 
     run_gym(seed=args.seed, split=args.split)
+
 
 
 if __name__ == "__main__":
