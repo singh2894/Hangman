@@ -118,7 +118,7 @@ class EnvHangman:
 
         # Illegal action: letter already guessed → state unchanged (small penalty)
         if action in self._guessed:
-            return self._get_obs(), -2, False, False, self._get_info()
+            return self._get_obs(), False, False, self._get_info()
         
         if action in self._word:
             reward = 1    # correct guess
@@ -156,10 +156,8 @@ class EnvHangmanGym(GymBase):
         super().__init__()
         self._word = word.lower()
 
-        # Fixed-size observation: [pattern (max_word_len), guessed_mask (26), wrong_left (1)]
-        self.max_word_len = 20
         self.observation_space = gym.spaces.Box(
-            low=0, high=26, shape=(self.max_word_len + 26 + 1,), dtype=np.int32
+            low=0, high=26, shape=(32,), dtype=np.int32
         )
 
         # Action: 26 letters
@@ -173,16 +171,14 @@ class EnvHangmanGym(GymBase):
 
     def _encode_obs(self) -> np.ndarray:
 
-        obs = np.zeros(self.max_word_len + 26 + 1, dtype=np.int32)
+        obs = np.zeros(32, dtype=np.int32)
 
         # Pattern (padded/truncated to max_word_len)
-        for i, ch in enumerate(self._pattern[: self.max_word_len]):
+        for i, ch in enumerate(self._pattern):
             obs[i] = 0 if ch == "_" else ord(ch.lower()) - ord('a') + 1
 
-        # Guessed mask starts AFTER the pattern block
-        offset = self.max_word_len
         for i, letter in enumerate(LETTERS):
-            obs[offset + i] = 1 if letter in self._guessed else 0
+            obs[5 + i] = 1 if letter in self._guessed else 0
 
         # wrong_left in the final slot
         obs[-1] = self._wrong_left
@@ -213,9 +209,9 @@ class EnvHangmanGym(GymBase):
         if isinstance(action, (int, np.integer)):
             action = self._action_to_letter[int(action)]
 
-        # Illegal action: letter already guessed → state unchanged (small penalty)
+        # Illegal action: letter already guessed → state unchanged 
         if action in self._guessed:
-            return self._get_obs(), -2, False, False, self._get_info()
+            return self._get_obs(), False, False, self._get_info()
         
         # Compute reward before transition
         if action in self._word:
