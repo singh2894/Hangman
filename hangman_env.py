@@ -73,8 +73,7 @@ class WordSampler:
 class EnvHangman:
     """
     Plain-Python Hangman env. No BFS — transitions computed on the fly.
-    step() returns (obs, terminated, truncated, info) — no reward.
-    obs = state string e.g. "pattern=PL___|guessed=ALP|wrong_left=4"
+    step() returns (obs, reward, terminated, truncated, info).
     """
 
     def __init__(self, word: str):
@@ -109,10 +108,17 @@ class EnvHangman:
         return self._get_obs(), self._get_info()
 
     def step(self, action: str):
-        """Takes a letter. Returns (obs, terminated, truncated, info). (No reward)."""
-        # Illegal action: letter already guessed → state unchanged
+        """Takes a letter. Returns (obs, reward, terminated, truncated, info)."""
+        # Normalize / validate action
+        if not isinstance(action, str) or len(action) != 1:
+            raise ValueError("Action must be a single letter string")
+        action = action.lower()
+        if action not in LETTERS:
+            raise ValueError("Action must be a-z")
+
+        # Illegal action: letter already guessed → state unchanged (small penalty)
         if action in self._guessed:
-            return self._get_obs(), False, False, self._get_info()
+            return self._get_obs(), -2, False, False, self._get_info()
         
         if action in self._word:
             reward = 1    # correct guess
@@ -130,6 +136,7 @@ class EnvHangman:
         # Win bonus: all letters revealed
         if "_" not in self._pattern:
             reward += 5
+
 
         return self._get_obs(), reward, terminated, truncated, info
 
@@ -149,8 +156,10 @@ class EnvHangmanGym(GymBase):
         super().__init__()
         self._word = word.lower()
 
+        # Fixed-size observation: [pattern (max_word_len), guessed_mask (26), wrong_left (1)]
+        self.max_word_len = 20
         self.observation_space = gym.spaces.Box(
-            low=0, high=26, shape=(32,), dtype=np.int32
+            low=0, high=26, shape=(self.max_word_len + 26 + 1,), dtype=np.int32
         )
 
         # Action: 26 letters
@@ -164,12 +173,19 @@ class EnvHangmanGym(GymBase):
 
     def _encode_obs(self) -> np.ndarray:
 
-        obs = np.zeros(32, dtype=np.int32)
-        for i, ch in enumerate(self._pattern):
+        obs = np.zeros(self.max_word_len + 26 + 1, dtype=np.int32)
+
+        # Pattern (padded/truncated to max_word_len)
+        for i, ch in enumerate(self._pattern[: self.max_word_len]):
             obs[i] = 0 if ch == "_" else ord(ch.lower()) - ord('a') + 1
+
+        # Guessed mask starts AFTER the pattern block
+        offset = self.max_word_len
         for i, letter in enumerate(LETTERS):
-            obs[5 + i] = 1 if letter in self._guessed else 0
-        obs[31] = self._wrong_left
+            obs[offset + i] = 1 if letter in self._guessed else 0
+
+        # wrong_left in the final slot
+        obs[-1] = self._wrong_left
         return obs
 
     def _get_obs(self) -> np.ndarray:
@@ -197,9 +213,9 @@ class EnvHangmanGym(GymBase):
         if isinstance(action, (int, np.integer)):
             action = self._action_to_letter[int(action)]
 
-        # Illegal action: letter already guessed → state unchanged
+        # Illegal action: letter already guessed → state unchanged (small penalty)
         if action in self._guessed:
-            return self._get_obs(), False, False, self._get_info()
+            return self._get_obs(), -2, False, False, self._get_info()
         
         # Compute reward before transition
         if action in self._word:
@@ -216,9 +232,10 @@ class EnvHangmanGym(GymBase):
         terminated = "_" not in self._pattern or self._wrong_left == 0
         truncated  = self._step_counter >= 500
 
-         # Win bonus: all letters revealed
+        # Win bonus: all letters revealed
         if "_" not in self._pattern:
             reward += 5
+
 
         return self._get_obs(), reward, terminated, truncated, info
 
