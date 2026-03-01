@@ -212,26 +212,3 @@ Avg Steps per Game              8.60          8.34        +0.26
 Avg Reward per Game            -1.14         -1.81        +0.67
 States Explored              218,279       177,341      +40,938
 ```
-
----
-
-## Contributing
-
-Contributions welcome! Please submit a Pull Request.
-
----
-
-## License
-
-MIT License - see LICENSE file for details.
-
----
-
-## References
-
-- Sutton & Barto: *Reinforcement Learning: An Introduction*
-- Gymnasium: https://gymnasium.farama.org/
-
----
-
-**Made with ❤️ for RL learning**
