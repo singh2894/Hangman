@@ -171,7 +171,7 @@ Optimal: α=0.05 (Q-Learning), α=0.01 (SARSA)
 
 | File | Purpose |
 |------|---------|
-| `dict.py` | 500 five-letter word dictionary |
+| `dict.py` | 1000 five-letter word dictionary |
 | `hangman_env.py` | Gymnasium environment implementation |
 | `heuristic_agent.py` | Pattern-matching baseline agent |
 | `train_rl.py` | Q-Learning & SARSA training |
