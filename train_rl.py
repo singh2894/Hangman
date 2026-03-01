@@ -3,7 +3,10 @@ import random
 import numpy as np
 import os
 import pickle
+import math
+import argparse
 from collections import defaultdict
+
 from hangman_env import WordSampler, EnvHangmanGym
 
 
@@ -179,6 +182,114 @@ def evaluate_greedy(Q, episodes=200, seed=999, split="test"):
         'avg_reward': avg_reward
     }
 
+
+def evaluate_greedy_return_winrate(Q, episodes=1000, seed=999, split="test") -> float:
+    """Evaluate greedy policy derived from Q and return win rate as a float."""
+    sampler = WordSampler(seed=seed)
+    wins = 0
+
+    for ep in range(episodes):
+        word = sampler.sample(split=split, seed=seed + ep)
+        env = EnvHangmanGym(word)
+
+        obs, info = env.reset(seed=seed + ep)
+        terminated = truncated = False
+
+        while not (terminated or truncated):
+            s = obs_to_key(obs)
+            legal = legal_action_indices(env)
+            a = max(legal, key=lambda x: float(Q[s][x]))
+            obs, r, terminated, truncated, info = env.step(a)
+
+        if "_" not in info["pattern"]:
+            wins += 1
+
+    return wins / episodes
+
+
+def mean_std(xs):
+    if not xs:
+        return 0.0, 0.0
+    m = sum(xs) / len(xs)
+    v = sum((x - m) ** 2 for x in xs) / len(xs)
+    return m, math.sqrt(v)
+
+
+def grid_search_alpha(
+    alphas=(0.01, 0.05, 0.1, 0.2, 0.3),
+    train_episodes=50000,
+    eval_episodes=1000,
+    seeds=(0, 1, 2, 3, 4),
+    split_train="train",
+    split_eval="test",
+):
+    """Professor-style alpha sweep.
+
+    - Fix everything except alpha.
+    - For each alpha, train with multiple seeds.
+    - Evaluate greedy win rate on held-out split.
+    - Print mean ± std for Q-learning and SARSA.
+
+    Note: This retrains for each (alpha, seed, algorithm) combination.
+    """
+
+    results = []
+
+    for alpha in alphas:
+        q_wins = []
+        s_wins = []
+
+        for s in seeds:
+            # Q-learning
+            Q_q = train_qlearning(
+                episodes=train_episodes,
+                alpha=alpha,
+                seed=42 + s,
+                split=split_train,
+            )
+            wr_q = evaluate_greedy_return_winrate(
+                Q_q,
+                episodes=eval_episodes,
+                seed=999 + 1000 * s,
+                split=split_eval,
+            )
+            q_wins.append(wr_q)
+
+            # SARSA
+            Q_s = train_sarsa(
+                episodes=train_episodes,
+                alpha=alpha,
+                seed=42 + s,
+                split=split_train,
+            )
+            wr_s = evaluate_greedy_return_winrate(
+                Q_s,
+                episodes=eval_episodes,
+                seed=1999 + 1000 * s,
+                split=split_eval,
+            )
+            s_wins.append(wr_s)
+
+        q_mean, q_std = mean_std(q_wins)
+        s_mean, s_std = mean_std(s_wins)
+
+        results.append((alpha, q_mean, q_std, s_mean, s_std))
+
+    print("\n=== Alpha grid search (win rate on test) ===")
+    print(f"Train episodes: {train_episodes} | Eval episodes: {eval_episodes} | Seeds: {list(seeds)}")
+    print("alpha | Q-learning mean±std | SARSA mean±std")
+    print("------|---------------------|----------------")
+    for alpha, q_mean, q_std, s_mean, s_std in results:
+        print(f"{alpha:>4.2f} | {q_mean:>6.3f}±{q_std:<6.3f} | {s_mean:>6.3f}±{s_std:<6.3f}")
+
+    best_q = max(results, key=lambda row: row[1])
+    best_s = max(results, key=lambda row: row[3])
+    print("\nBest Q-learning alpha:", best_q[0], f"(mean win rate {best_q[1]:.3f})")
+    print("Best SARSA alpha:", best_s[0], f"(mean win rate {best_s[3]:.3f})")
+
+    return results
+
+
 def save_results(Q, eval_results, algorithm_name, episodes):
     os.makedirs('models', exist_ok=True)
     os.makedirs('results', exist_ok=True)
@@ -203,8 +314,24 @@ def save_results(Q, eval_results, algorithm_name, episodes):
     print(f"Result is successfully saved to {results_path}")
 
 if __name__ == "__main__":
-    EPISODES = 50000
-    EVAL_EPISODES = 1000
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--episodes", type=int, default=50000, help="Training episodes")
+    parser.add_argument("--eval_episodes", type=int, default=1000, help="Evaluation episodes")
+    parser.add_argument("--grid", action="store_true", help="Run professor-style alpha grid search")
+    args = parser.parse_args()
+
+    if args.grid:
+        # Professor-style sweep (edit these lists as you like)
+        grid_search_alpha(
+            alphas=(0.01, 0.05, 0.1, 0.2, 0.3),
+            train_episodes=args.episodes,
+            eval_episodes=args.eval_episodes,
+            seeds=(0, 1, 2, 3, 4),
+        )
+        raise SystemExit(0)
+
+    EPISODES = args.episodes
+    EVAL_EPISODES = args.eval_episodes
 
     print("=== Q-learning ===")
     Q_q = train_qlearning(episodes=EPISODES, split="train")
