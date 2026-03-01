@@ -27,7 +27,7 @@ words = [
 "doing","doubt","dozen","draft","drain","drama","drawn","dream","dress","drift",
 "drill","drink","drive","drone","drunk","eagle","early","earth","eight","elite",
 "empty","enemy","enjoy","enter","entry","equal","error","event","every","exact",
-"exist","extra","faith","false","fault","favor","fiber","field","fierce","fifth",
+"exist","extra","faith","false","fault","favor","fiber","field","fifth",
 "fifty","fight","final","first","fixed","flame","flash","fleet","floor","fluid",
 "focus","force","forge","forth","forty","forum","found","frame","frank","fraud",
 "fresh","front","frost","fruit","fully","funny","giant","given","glass","globe",
