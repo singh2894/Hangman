@@ -44,7 +44,7 @@ python compare_rl_results.py
 ## Project Structure
 ```
 hangman-rl/
-├── dict.py                    # 500 five-letter words
+├── dict.py                   # 500 five-letter words
 ├── hangman_env.py            # Gymnasium environment
 ├── heuristic_agent.py        # Pattern-matching baseline
 ├── train_rl.py               # RL training & tuning
@@ -171,7 +171,7 @@ Optimal: α=0.05 (Q-Learning), α=0.01 (SARSA)
 
 | File | Purpose |
 |------|---------|
-| `dict.py` | 1000 five-letter word dictionary |
+| `dict.py` | 500 five-letter word dictionary |
 | `hangman_env.py` | Gymnasium environment implementation |
 | `heuristic_agent.py` | Pattern-matching baseline agent |
 | `train_rl.py` | Q-Learning & SARSA training |
@@ -206,9 +206,9 @@ Greedy policy win rate: 0.186
 **Analysis:**
 ```
 Performance Comparison Table
-Metric                    Q-Learning         SARSA    Difference
-Win Rate (%)                   18.60         14.70        +3.90
-Avg Steps per Game              8.60          8.34        +0.26
-Avg Reward per Game            -1.14         -1.81        +0.67
-States Explored              218,279       177,341      +40,938
+Metric                    Q-Learning         SARSA    Heuristic
+Win Rate (%)                   18.60         14.70        98.10
+Avg Steps per Game              8.60          8.34         7.29
+Avg Reward per Game            -1.14         -1.81         7.01
+States Explored              218,279       177,341          N/A
 ```
