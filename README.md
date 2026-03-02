@@ -44,7 +44,7 @@ python compare_rl_results.py
 ## Project Structure
 ```
 hangman-rl/
-├── dict.py                   # 500 five-letter words
+├── dict.py                   # 1,000 five-letter words
 ├── hangman_env.py            # Gymnasium environment
 ├── heuristic_agent.py        # Pattern-matching baseline
 ├── train_rl.py               # RL training & tuning
@@ -171,7 +171,7 @@ Optimal: α=0.05 (Q-Learning), α=0.01 (SARSA)
 
 | File | Purpose |
 |------|---------|
-| `dict.py` | 500 five-letter word dictionary |
+| `dict.py` | 1,000 five-letter word dictionary |
 | `hangman_env.py` | Gymnasium environment implementation |
 | `heuristic_agent.py` | Pattern-matching baseline agent |
 | `train_rl.py` | Q-Learning & SARSA training |
