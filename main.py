@@ -128,6 +128,9 @@ def run_gym(seed=42, split="train"):
     else:
         print("Agent LOST ❌")
 
+
+
+
     print(f"Final word: {info['word']}")
 
 

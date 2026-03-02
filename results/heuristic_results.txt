@@ -1,0 +1,6 @@
+Algorithm: Heuristic
+Episodes: 0
+Q-table size: N/A
+Win rate: 0.9810
+Avg steps: 7.2880
+Avg reward: 7.0090
