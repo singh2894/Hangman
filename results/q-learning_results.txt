@@ -1,0 +1,6 @@
+Algorithm: Q-Learning
+Episodes: 50000
+Q-table size: 218279
+Win rate: 0.1860
+Avg steps: 8.5950
+Avg reward: -1.1370

@@ -40,7 +40,7 @@ def max_over_legal(Q, s_key, legal):
 
 
 def train_qlearning(
-    episodes=5000,
+    episodes=50000,
     alpha=0.1,
     gamma=0.95,
     seed=42,
@@ -88,7 +88,7 @@ def train_qlearning(
 
 
 def train_sarsa(
-    episodes=5000,
+    episodes=50000,
     alpha=0.1,
     gamma=0.95,
     seed=42,
