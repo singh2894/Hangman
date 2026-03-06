@@ -45,16 +45,18 @@ def train_qlearning(
     gamma=0.95,
     seed=42,
     split="train",
+    eps_start=1.0,
+    eps_end=0.01,
+    decay_frac=0.8,
+    init_q=0.0,
 ):
     """Tabular Q-learning training loop."""
     random.seed(seed)
     np.random.seed(seed)
 
     sampler = WordSampler(seed=seed)
-    Q = defaultdict(lambda: np.zeros(26, dtype=np.float32))
-    eps_start = 1.0
-    eps_end = 0.05
-    decay_episodes = int(episodes * 0.6)
+    Q = defaultdict(lambda: np.ones(26, dtype=np.float32) * float(init_q))
+    decay_episodes = int(episodes * float(decay_frac))
 
     for ep in range(episodes):
         eps = eps_end + (eps_start - eps_end) * max(
@@ -93,17 +95,18 @@ def train_sarsa(
     gamma=0.95,
     seed=42,
     split="train",
+    eps_start=1.0,
+    eps_end=0.01,
+    decay_frac=0.8,
+    init_q=0.0,
 ):
     """Tabular SARSA training loop (on-policy)."""
     random.seed(seed)
     np.random.seed(seed)
 
     sampler = WordSampler(seed=seed)
-    Q = defaultdict(lambda: np.zeros(26, dtype=np.float32))
-
-    eps_start = 1.0
-    eps_end = 0.05
-    decay_episodes = int(episodes * 0.6)
+    Q = defaultdict(lambda: np.ones(26, dtype=np.float32) * float(init_q))
+    decay_episodes = int(episodes * float(decay_frac))
 
     for ep in range(episodes):
         eps = eps_end + (eps_start - eps_end) * max(0, (decay_episodes - ep)) / max(1, decay_episodes)
@@ -217,6 +220,10 @@ def mean_std(xs):
 
 def grid_search_alpha(
     alphas=(0.01, 0.05, 0.1, 0.2, 0.3),
+    gammas=(0.95,),
+    eps_ends=(0.01,),
+    decay_frac=0.8,
+    init_q=0.0,
     train_episodes=50000,
     eval_episodes=1000,
     seeds=(0, 1, 2, 3, 4),
@@ -235,57 +242,66 @@ def grid_search_alpha(
 
     results = []
 
-    for alpha in alphas:
-        q_wins = []
-        s_wins = []
+    for gamma in gammas:
+        for eps_end in eps_ends:
+            for alpha in alphas:
+                q_wins = []
+                s_wins = []
 
-        for s in seeds:
-            # Q-learning
-            Q_q = train_qlearning(
-                episodes=train_episodes,
-                alpha=alpha,
-                seed=42 + s,
-                split=split_train,
-            )
-            wr_q = evaluate_greedy_return_winrate(
-                Q_q,
-                episodes=eval_episodes,
-                seed=999 + 1000 * s,
-                split=split_eval,
-            )
-            q_wins.append(wr_q)
+                for s in seeds:
+                    # Q-learning
+                    Q_q = train_qlearning(
+                        episodes=train_episodes,
+                        alpha=alpha,
+                        seed=42 + s,
+                        split=split_train,
+                        gamma=gamma,
+                        eps_end=eps_end,
+                        decay_frac=decay_frac,
+                        init_q=init_q,
+                    )
+                    wr_q = evaluate_greedy_return_winrate(
+                        Q_q,
+                        episodes=eval_episodes,
+                        seed=999 + 1000 * s,
+                        split=split_eval,
+                    )
+                    q_wins.append(wr_q)
 
-            # SARSA
-            Q_s = train_sarsa(
-                episodes=train_episodes,
-                alpha=alpha,
-                seed=42 + s,
-                split=split_train,
-            )
-            wr_s = evaluate_greedy_return_winrate(
-                Q_s,
-                episodes=eval_episodes,
-                seed=1999 + 1000 * s,
-                split=split_eval,
-            )
-            s_wins.append(wr_s)
+                    # SARSA
+                    Q_s = train_sarsa(
+                        episodes=train_episodes,
+                        alpha=alpha,
+                        seed=42 + s,
+                        split=split_train,
+                        gamma=gamma,
+                        eps_end=eps_end,
+                        decay_frac=decay_frac,
+                        init_q=init_q,
+                    )
+                    wr_s = evaluate_greedy_return_winrate(
+                        Q_s,
+                        episodes=eval_episodes,
+                        seed=1999 + 1000 * s,
+                        split=split_eval,
+                    )
+                    s_wins.append(wr_s)
 
-        q_mean, q_std = mean_std(q_wins)
-        s_mean, s_std = mean_std(s_wins)
+                q_mean, q_std = mean_std(q_wins)
+                s_mean, s_std = mean_std(s_wins)
 
-        results.append((alpha, q_mean, q_std, s_mean, s_std))
+                results.append((gamma, eps_end, alpha, q_mean, q_std, s_mean, s_std))
 
     print("\n=== Alpha grid search (win rate on test) ===")
     print(f"Train episodes: {train_episodes} | Eval episodes: {eval_episodes} | Seeds: {list(seeds)}")
-    print("alpha | Q-learning mean±std | SARSA mean±std")
-    print("------|---------------------|----------------")
-    for alpha, q_mean, q_std, s_mean, s_std in results:
-        print(f"{alpha:>4.2f} | {q_mean:>6.3f}±{q_std:<6.3f} | {s_mean:>6.3f}±{s_std:<6.3f}")
-
-    best_q = max(results, key=lambda row: row[1])
-    best_s = max(results, key=lambda row: row[3])
-    print("\nBest Q-learning alpha:", best_q[0], f"(mean win rate {best_q[1]:.3f})")
-    print("Best SARSA alpha:", best_s[0], f"(mean win rate {best_s[3]:.3f})")
+    print("gamma | eps_end | alpha | Q-learning mean±std | SARSA mean±std")
+    print("------|---------|-------|---------------------|----------------")
+    for gamma, eps_end, alpha, q_mean, q_std, s_mean, s_std in results:
+        print(f"{gamma:>4.2f} | {eps_end:>7.3f} | {alpha:>5.2f} | {q_mean:>6.3f}±{q_std:<6.3f} | {s_mean:>6.3f}±{s_std:<6.3f}")
+    best_q = max(results, key=lambda row: row[3])
+    best_s = max(results, key=lambda row: row[5])
+    print("\nBest Q-learning config (gamma, eps_end, alpha):", (best_q[0], best_q[1], best_q[2]), f"(mean win rate {best_q[3]:.3f})")
+    print("Best SARSA config (gamma, eps_end, alpha):", (best_s[0], best_s[1], best_s[2]), f"(mean win rate {best_s[5]:.3f})")
 
     return results
 
@@ -318,12 +334,26 @@ if __name__ == "__main__":
     parser.add_argument("--episodes", type=int, default=50000, help="Training episodes")
     parser.add_argument("--eval_episodes", type=int, default=1000, help="Evaluation episodes")
     parser.add_argument("--grid", action="store_true", help="Run professor-style alpha grid search")
+    parser.add_argument("--gamma", type=float, default=0.95, help="Discount factor gamma")
+    parser.add_argument("--eps_end", type=float, default=0.01, help="Final epsilon for epsilon-greedy schedule")
+    parser.add_argument("--decay_frac", type=float, default=0.8, help="Fraction of training over which epsilon decays")
+    parser.add_argument("--init_q", type=float, default=0.0, help="Optimistic initialization value for all Q(s,a)")
+    parser.add_argument("--alpha_q", type=float, default=0.05, help="Learning rate alpha for Q-learning")
+    parser.add_argument("--alpha_s", type=float, default=0.01, help="Learning rate alpha for SARSA")
+    parser.add_argument("--grid_gammas", type=str, default="0.90,0.95,0.99", help="Comma-separated gammas for grid search")
+    parser.add_argument("--grid_eps_ends", type=str, default="0.05,0.02,0.01", help="Comma-separated eps_end values for grid search")
     args = parser.parse_args()
 
     if args.grid:
         # Professor-style sweep (edit these lists as you like)
+        gammas = tuple(float(x) for x in args.grid_gammas.split(",") if x.strip())
+        eps_ends = tuple(float(x) for x in args.grid_eps_ends.split(",") if x.strip())
         grid_search_alpha(
             alphas=(0.01, 0.05, 0.1, 0.2, 0.3),
+            gammas=gammas,
+            eps_ends=eps_ends,
+            decay_frac=args.decay_frac,
+            init_q=args.init_q,
             train_episodes=args.episodes,
             eval_episodes=args.eval_episodes,
             seeds=(0, 1, 2, 3, 4),
@@ -334,11 +364,29 @@ if __name__ == "__main__":
     EVAL_EPISODES = args.eval_episodes
 
     print("=== Q-learning ===")
-    Q_q = train_qlearning(episodes=EPISODES, split="train")
+    # Best alpha from grid search for Q-learning
+    Q_q = train_qlearning(
+        episodes=EPISODES,
+        alpha=args.alpha_q,
+        gamma=args.gamma,
+        eps_end=args.eps_end,
+        decay_frac=args.decay_frac,
+        init_q=args.init_q,
+        split="train",
+    )
     eval_result_q_learning = evaluate_greedy(Q_q, episodes=EVAL_EPISODES, split="test")
     save_results(Q_q, eval_result_q_learning, "Q-Learning", EPISODES)
 
     print("\n=== SARSA ===")
-    Q_s = train_sarsa(episodes=EPISODES, split="train")
+    # Best alpha from grid search for SARSA
+    Q_s = train_sarsa(
+        episodes=EPISODES,
+        alpha=args.alpha_s,
+        gamma=args.gamma,
+        eps_end=args.eps_end,
+        decay_frac=args.decay_frac,
+        init_q=args.init_q,
+        split="train",
+    )
     eval_result_sarsa = evaluate_greedy(Q_s, episodes=EVAL_EPISODES, split="test")
     save_results(Q_s, eval_result_sarsa, "SARSA", EPISODES)

@@ -209,9 +209,12 @@ class EnvHangmanGym(GymBase):
         if isinstance(action, (int, np.integer)):
             action = self._action_to_letter[int(action)]
 
-        # Illegal action: letter already guessed → state unchanged 
+        # Illegal action: letter already guessed → state unchanged
         if action in self._guessed:
-            return self._get_obs(), False, False, self._get_info()
+            reward = 0.0
+            terminated = False
+            truncated = False
+            return self._get_obs(), reward, terminated, truncated, self._get_info()
         
         # Compute reward before transition
         if action in self._word:
